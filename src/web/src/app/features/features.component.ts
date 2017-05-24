@@ -11,7 +11,7 @@ import { Features } from "../features/features.model";
 export class FeaturesComponent implements OnInit {
   public features: Features;
 
-  constructor(private featuresService: FeaturesService) { 
+  constructor(private featuresService: FeaturesService) {
     this.features = new Features();
   }
 

@@ -6,18 +6,21 @@ import { HttpModule } from '@angular/http';
 import { AppComponent } from './app.component';
 import { FeaturesComponent } from './features/features.component';
 import { FeaturesService } from "./services/features.service";
+import { ValuesService } from "./services/values.service";
+import { ValuesComponent } from './values/values.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    FeaturesComponent
+    FeaturesComponent,
+    ValuesComponent
   ],
   imports: [
     BrowserModule,
     FormsModule,
     HttpModule
   ],
-  providers: [FeaturesService],
+  providers: [FeaturesService, ValuesService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
