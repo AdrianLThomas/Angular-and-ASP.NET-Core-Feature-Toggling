@@ -12,7 +12,8 @@ namespace api.Extensions
         public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
         {
             var provider = new SettingsFeatureProvider(configuration);
-            services.AddSingleton<ValuesFeature>(new ValuesFeature() { ToggleValueProvider = provider });
+            services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });
+            services.AddSingleton(new NavigationFeature() { ToggleValueProvider = provider });
         }
     }
 }

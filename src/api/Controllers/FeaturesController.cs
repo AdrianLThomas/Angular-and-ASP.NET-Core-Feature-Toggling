@@ -13,11 +13,12 @@ namespace api.Controllers
     {
         private readonly IEnumerable<IFeatureToggle> _allFeatures;
 
-        public FeaturesController(ValuesFeature valuesFeature)
+        public FeaturesController(ValuesFeature valuesFeature, NavigationFeature navigationFeature)
         {
             _allFeatures = new List<IFeatureToggle>()
             {
-                valuesFeature
+                valuesFeature,
+                navigationFeature
                 // It would be much nicer if we could inject all registered IFeatureToggle in here, but
                 // it appears to be a restriction of the DI in ASP.NET core when registering a concrete
                 // type. It would avoid having to maintain this list manually.

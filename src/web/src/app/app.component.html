@@ -1,3 +1,8 @@
+<app-navigation *ngIf="features.NavigationFeature"></app-navigation>
+
 <h1>Feature Toggling Demo</h1>
 
-<app-features></app-features>
+<p>The values from the API are:</p>
+<ul *ngIf="features.ValuesFeature">
+  <li>Test</li>
+</ul>
