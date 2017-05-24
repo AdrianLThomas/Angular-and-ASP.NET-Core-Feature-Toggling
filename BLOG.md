@@ -5,7 +5,11 @@ Outline of scope, what is covered, what isn't (i.e. variable substitution / depl
 To do
 
 # Adding new features
-To do
+WIP
+- New Feature in API
+- Register Feature
+- Expose Feature via API
+- Add to model in Angular
 
 # Restricting API access
 To do
