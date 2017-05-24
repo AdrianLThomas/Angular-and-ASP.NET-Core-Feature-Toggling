@@ -14,8 +14,9 @@ WIP
 # Restricting API access
 To do
 
-Restricted sample endpoint: http://localhost:5000/api/Values
-Get all features (for Angular to call): http://localhost:5000/api/Features
+Restricted sample endpoint: http://localhost:4200/api/Values
+Get all features (for Angular to call): http://localhost:4200/api/Features
+Note: [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy) is used in order to avoid CORS issues for local development. This takes API requests from the port that is serving the static content and serves them to the API running on a different port.
 
 # Hiding interface elements
 To do
