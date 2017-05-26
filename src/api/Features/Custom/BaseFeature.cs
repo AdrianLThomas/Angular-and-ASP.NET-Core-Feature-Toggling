@@ -22,7 +22,8 @@ namespace api.Features.Custom
         {
             context.Result = new ContentResult()
             {
-                Content = "Resource unavailable - feature disabled"
+                Content = "Resource unavailable - feature disabled",
+                StatusCode = 401
             };
         }
     }
