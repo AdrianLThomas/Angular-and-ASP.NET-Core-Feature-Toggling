@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Http, Response, Headers, RequestOptions, Request, RequestMethod } from '@angular/http';
 import { Observable } from 'rxjs/Rx';
 import 'rxjs/add/operator/map';
+import { Features } from "../models/features.model";
 
 @Injectable()
 export class FeaturesService {
@@ -22,9 +23,4 @@ export class FeaturesService {
         console.log('error = ' + error);
         return Observable.throw(error.statusText);
     }
-}
-
-export class Features {
-  ValuesFeature: boolean;
-  NavigationFeature: boolean;
 }
