@@ -3,7 +3,7 @@
 # Feature Toggle demo using Angular (2+) and ASP.NET Core
 
 # Intro
-Feature toggling is what it says on the tin, the ability to toggle features off/on. This can be useful for a range of scenarios - perhaps a feature isn't quite yet ready for production yet, or it is some new functionality you would like to trial with some but not all customers. In this blog article you will learn how to feature toggle in an Angular 2+ app and ASP .NET Core Web API. We'll hide components and avoid them from being executed unless enabled, and also protect specific endpoints on the API from being called. There is also a demo with some sample code at the end of this article.
+Feature toggling is what it says on the tin, the ability to toggle features off/on. This can be useful for a range of scenarios - perhaps a feature isn't quite yet ready for production yet, or there's some new functionality you would like to trial with some but not all customers. In this blog article you will learn how to feature toggle in an Angular 2+ app and ASP .NET Core Web API. We'll hide components and avoid them from being executed unless enabled, and also protect specific endpoints on the API from being called. There is also a demo with some sample code at the end of this article.
 
 # Getting Started
 ## Prerequisites
@@ -21,10 +21,10 @@ In a nutshell:
 * Make a request to the API from Angular to discover what features are enabled, and simply use `*ngIf` to decide whether that component should be enabled.
 
 # Setup
-This article covers typical changes you need to make to your existing solution, not how to set up a new Angular / .NET Core project. Please use the demo at the end of this article as a working reference.
+This article covers typical changes you would need to make to your existing solution, not how to set up a new Angular / .NET Core project. Please use the demo at the end of this article as a working reference.
 
-## API
-###
+## The API
+### Settings file
 In our `appSettings.json` file, we configure our features like so:
 ```
 {
@@ -39,13 +39,55 @@ This can then be picked up by our features. _Note: The name of the setting shoul
 I'll leave it up to you on how you decide to toggle the switch. This could be deploy time, real time or just manually.
 
 ### Settings Feature Provider
-Unfortunately one of the issues with the AppSettingsProvider within the FeatureToggle package is that it doesn't correctly.
+Unfortunately one of the issues with the AppSettingsProvider within the FeatureToggle package is that it doesn't appear to read from the config file correctly. I've raised an [issue on GitHub](https://github.com/jason-roberts/FeatureToggle/issues/145) but awaiting a resolution.
 
-<TODO! - Issue on github logged>. https://github.com/jason-roberts/FeatureToggle/issues/145
+The good thing is that you can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database, etc). This is exactly what I did to read from the AppSettings.json file.
 
+All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. In the scenario below, I read from the AppSettings.json file, looking for a "FeatureToggle" block, and use reflection to find the class name of the current feature instance, then look it up from config. 
+
+#### Custom settings provider
+```
+public class SettingsFeatureProvider : IBooleanToggleValueProvider
+{
+    private readonly IConfigurationRoot _configuration;
+
+    public SettingsFeatureProvider(IConfigurationRoot configuration)
+    {
+        if (configuration == null)
+            throw new ArgumentNullException(nameof(configuration));
+
+        _configuration = configuration;
+    }
+
+    public bool EvaluateBooleanToggleValue(IFeatureToggle toggle)
+    {
+        if (toggle == null)
+            throw new ArgumentNullException(nameof(toggle));
+
+        string settingName = toggle.GetType().Name;
+        string keyName = $"FeatureToggle:{settingName}";
+        string value = _configuration[keyName];
+
+        if (string.IsNullOrEmpty(value))
+            throw new InvalidOperationException($"Key not found in AppSetting.json: {keyName}");
+
+        return Convert.ToBoolean(value);
+    }
+}
+```
+
+#### Feature registration
+```
+public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
+{
+    var provider = new SettingsFeatureProvider(configuration);
+    services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });
+    services.AddSingleton(new NavigationFeature() { ToggleValueProvider = provider });
+}
+```
 
 ### Installing the nuget package
-First we need to install the nuget package. We need to use a pre-release version (at time of writing) that supports .NET core. It's a good package to aim for as it supports many versions of .NET and is frequently updated. There are some issues with it, which we will work around in this article.
+First we need to install the nuget package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to aim for as it supports many versions of .NET and is frequently updated. There are some issues with it, which we will work around in this article.
 
 Run the following to install the package to your project:
 
@@ -81,8 +123,10 @@ public abstract class BaseFeature : SimpleFeatureToggle, IResourceFilter
 }
 ```
 
+Our new features should now inherit this class.
+
 ### Associating a feature with controllers / actions
-If the feature is disabled, then the request will fail with the specified message and status code. Therefore if we create a new feature like so:
+If the feature is disabled, then the request should fail with the specified message and status code. Therefore if we create a new feature like so:
 ```
 public class ValuesFeature : BaseFeature { }
 ```
@@ -102,6 +146,24 @@ public IEnumerable<string> Get()
     return new string[] { "value1", "value2" };
 }
 ```
+
+#### Response from a disabled feature
+If the ValuesFeature is turned off, and we make GET request to `http://localhost:4200/api/Values` then we will see the following response:
+```
+$ curl -i -X GET http://localhost:4200/api/values
+HTTP/1.1 401 Unauthorized
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+connection: close
+date: Fri, 26 May 2017 15:33:29 GMT
+content-length: 39
+content-type: text/plain; charset=utf-8
+server: Kestrel
+
+Resource unavailable - feature disabled
+```
+
+Note that we get the response message and status code as specified in the BaseFeature class.
 
 ### Exposing available features
 We want to be able to expose what features are enabled/disabled so that our Angular app can determine what parts of the website should be active (rendered and executed). Therefore we should expose an endpoint that displays all features and their current state.
@@ -134,7 +196,22 @@ public class FeaturesController : Controller
 }
 ```
 
-## Website
+#### Response from the features endpoint
+```
+$ curl -i -X GET http://localhost:4200/api/features
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+connection: close
+date: Fri, 26 May 2017 15:32:58 GMT
+content-type: application/json; charset=utf-8
+server: Kestrel
+transfer-encoding: chunked
+
+{"ValuesFeature":false,"NavigationFeature":true}
+```
+
+## The Website
 Quite simply, Angular just needs to make the request to the API and use `*ngIf` to bind to the result returned from the API. A features service could be created like so:
 ```
 import { Injectable } from '@angular/core';
@@ -197,23 +274,7 @@ So if you want to add a new feature, the following areas need updating:
 1. Add to model in Angular
 1. Bind front end to state of the feature returned from the API
 
-# Restricting API access
-To do
-
-Restricted sample endpoint: http://localhost:4200/api/Values
-Get all features (for Angular to call): http://localhost:4200/api/Features
-Note: [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy) is used in order to avoid CORS issues for local development. This takes API requests from the port that is serving the static content and serves them to the API running on a different port.
-
-# Hiding interface elements
-To do
-Show network traffic with feature enabled vs disabled. (web requests only made if enabled)
-
-# Gotchas
-When registering the feature, ideally it needs to be registered by the interface so that an IEnumerable<IFeatureToggle> can be returned. This is very useful for the Features controller so that the enabled features can be exposed. However the problem with this approach is that in order to use the ServiceFilterAttribute to resolve the feature from the DI container, you must pass in the type of the implementation - which fails, because we registered the interface and passed in the concrete type. Conversely, we could register the concrete version, which would then allow the ServiceFilterAttribute to work, but we cannot inject an IEnumerable<IFeatureToggle>. Therefore we have two places to manage features, one during service registration and one for feature discovery via the API endpoint. 
-
 # Demo
-This section is optional - there is a sample demo here, however this article will run through the steps required to integrate this in your application.
-
 ```git clone https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling```
 
 ```$ cd "./src/web/"```
@@ -222,7 +283,7 @@ This section is optional - there is a sample demo here, however this article wil
 
 ```$ npm start```
 
-Ensure ```npm start``` is used rather than ```ng serve```, as we want the proxy to start at the same time.
+_Note: Ensure ```npm start``` is used rather than ```ng serve```, as we want the proxy to start at the same time._
 
 ## API Project
 ```$ cd "./src/api/"```
@@ -230,3 +291,9 @@ Ensure ```npm start``` is used rather than ```ng serve```, as we want the proxy 
 ```$ dotnet restore```
 
 ```$ dotnet run```
+
+# Other Notes
+In order to avoid CORS issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the static content and serves them to the API running on a different port.
+
+# Summary
+I hope you've found this post helpful. If you have any feedback or suggestions, please feel free to raise an issue or pull request on GitHub and I'd be happy to take a look.
