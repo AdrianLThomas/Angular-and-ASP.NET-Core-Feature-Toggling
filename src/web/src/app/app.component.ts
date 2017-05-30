@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { FeaturesService, Features } from "./services/features.service";
+import { FeaturesService } from "./services/features.service";
+import { Features } from "./models/features.model";
 
 @Component({
   selector: 'app-root',
