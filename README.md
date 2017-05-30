@@ -1,5 +1,3 @@
-# Draft! This article is a work in progress...
-
 # Feature Toggle demo using Angular (2+) and ASP.NET Core
 
 # Intro
@@ -11,7 +9,7 @@ Feature toggling is what it says on the tin, the ability to toggle features off/
 * [npm](https://nodejs.org/en/)
 * [Angular CLI](https://www.npmjs.com/package/angular-cli)
 * [.NET Core](https://www.microsoft.com/net/download/core)
-* [FeatureToggle nuget package](https://github.com/jason-roberts/FeatureToggle)
+* [FeatureToggle NuGet package](https://github.com/jason-roberts/FeatureToggle)
 
 ## How it all works
 In a nutshell: 
@@ -34,16 +32,16 @@ In our `appSettings.json` file, we configure our features like so:
   }
 }
 ```
-This can then be picked up by our features. _Note: The name of the setting should correlate exactly with the class name of our feature._
+Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain later how you can implement your own method of obtaining settings. _Note: In this scenario the name of the setting should correlate exactly with the class name of our feature. I will explain why later in this post._
 
 I'll leave it up to you on how you decide to toggle the switch. This could be deploy time, real time or just manually.
 
 ### Settings Feature Provider
-Unfortunately one of the issues with the AppSettingsProvider within the FeatureToggle package is that it doesn't appear to read from the config file correctly. I've raised an [issue on GitHub](https://github.com/jason-roberts/FeatureToggle/issues/145) but awaiting a resolution.
+Unfortunately one of the issues with this pre-release version of the package is that the AppSettingsProvider within the FeatureToggle package is that it doesn't appear to read from the config file correctly. I've raised an [issue on GitHub](https://github.com/jason-roberts/FeatureToggle/issues/145) but I'm awaiting a resolution.
 
-The good thing is that you can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database, etc). This is exactly what I did to read from the AppSettings.json file.
+The good thing is that you can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database, or in our scenario a config file). This is exactly what I did to read from the AppSettings.json file.
 
-All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. In the scenario below, I read from the AppSettings.json file, looking for a "FeatureToggle" block, and use reflection to find the class name of the current feature instance, then look it up from config. 
+All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. In the scenario below, I read from the AppSettings.json file, looking for a "FeatureToggle" section, and use reflection to find the class name of the current feature instance, then look it up from config. 
 
 #### Custom settings provider
 ```
@@ -81,13 +79,12 @@ public class SettingsFeatureProvider : IBooleanToggleValueProvider
 public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
 {
     var provider = new SettingsFeatureProvider(configuration);
-    services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });
-    services.AddSingleton(new NavigationFeature() { ToggleValueProvider = provider });
+    services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });});
 }
 ```
 
-### Installing the nuget package
-First we need to install the nuget package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to aim for as it supports many versions of .NET and is frequently updated. There are some issues with it, which we will work around in this article.
+### Installing the NuGet package
+First we need to install the NuGet package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to aim for as it supports many versions of .NET and is frequently updated. There are some issues with it, which we will work around in this article.
 
 Run the following to install the package to your project:
 
@@ -126,7 +123,7 @@ public abstract class BaseFeature : SimpleFeatureToggle, IResourceFilter
 Our new features should now inherit this class.
 
 ### Associating a feature with controllers / actions
-If the feature is disabled, then the request should fail with the specified message and status code. Therefore if we create a new feature like so:
+If the feature is disabled, then the request should fail with the specified message and status code. Therefore if we create a new feature:
 ```
 public class ValuesFeature : BaseFeature { }
 ```
@@ -146,6 +143,8 @@ public IEnumerable<string> Get()
     return new string[] { "value1", "value2" };
 }
 ```
+
+Then we will either execute the action or stop the execution of the action altogether, depending on whether the feature is enabled or disabled respectively.
 
 #### Response from a disabled feature
 If the ValuesFeature is turned off, and we make GET request to `http://localhost:4200/api/Values` then we will see the following response:
@@ -168,7 +167,7 @@ Note that we get the response message and status code as specified in the BaseFe
 ### Exposing available features
 We want to be able to expose what features are enabled/disabled so that our Angular app can determine what parts of the website should be active (rendered and executed). Therefore we should expose an endpoint that displays all features and their current state.
 
-In this example we inject each feature in to the constructor of the controller and return it from the action. It would be nice to inject a list of IFeatureToggle rather than manually maintaining this list. One option would be to register each feature by the IFeatureToggle interface, which would then provide us with this behaviour. However the issue is that the in order to apply the filter on the controller, we want to use the instance of the filter registered with the IoC so that the settings get loaded correctly (due to the aforementioned bug). To do this we use the ServiceFilterAttribute and specify the concrete type, but because we registered the interface rather than the implementation the injection fails. Therefore until the bug has been fixed, we have to live with our own SettingsFeatureProvider and maintain this list.
+In this example we inject each feature in to the constructor of the controller and return it from the action. It would be nice to inject a list of IFeatureToggle rather than manually maintaining this list. One option would be to register each feature by the IFeatureToggle interface, which would then provide us with this behaviour. However the issue is that the in order to apply the filter on the controller, we want to use the instance of the filter registered with the IoC container so that the settings get loaded correctly (due to the aforementioned issue). To do this we use the ServiceFilterAttribute and specify the concrete type, but because we registered the interface rather than the implementation the injection fails. Therefore we have to maintain this list with all available features we want to expose via the API.
 
 
 ```
@@ -263,16 +262,16 @@ You can then inject this service in to your component, and bind to the feature i
 </ul>
 ```
 
-The nice thing is that since these components don't even get rendered, the components will not execute any code (thus any futher API calls they would be making will not be made).
+The nice thing is that since these components don't even get rendered, the components will not execute any code (thus any further API calls they would be making (and failing) will not be made at all).
 
 # Adding new features
-So if you want to add a new feature, the following areas need updating:
-1. Create new feature class in API
-1. Register Feature with IoC container
-1. Add setting for feature to appSettings.json
-1. Expose feature via API endpoint
-1. Add to model in Angular
-1. Bind front end to state of the feature returned from the API
+So if you want to add a new feature, you need to follow these steps:
+1. Create a new feature class in your API
+1. Register the feature with IoC container
+1. Add a setting for said feature to AppSettings.json (_remember to name it the same as the class name_)
+1. Expose the feature via API endpoint
+1. Add to the model in Angular
+1. Bind the front end to the state of the feature returned from the API
 
 # Demo
 ```git clone https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling```
@@ -293,7 +292,7 @@ _Note: Ensure ```npm start``` is used rather than ```ng serve```, as we want the
 ```$ dotnet run```
 
 # Other Notes
-In order to avoid CORS issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the static content and serves them to the API running on a different port.
+In order to avoid CORS issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the angular website and serves them to the API running on a different port.
 
 # Summary
 I hope you've found this post helpful. If you have any feedback or suggestions, please feel free to raise an issue or pull request on GitHub and I'd be happy to take a look.
