@@ -32,14 +32,14 @@ In our `appSettings.json` file, we configure our features like so:
   }
 }
 ```
-Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain later how you can implement your own method of obtaining settings. _Note: The name of the setting should correlate exactly with the class name of our feature._
+Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain in a moment how you can implement your own method of obtaining settings. _Note: The name of the setting should correlate exactly with the class name of our feature._
 
 I'll leave it up to you on how you decide to toggle the switch. This could be deploy time, real time or just manually.
 
 ### Settings Feature Provider
 You can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database or a config file). 
 
-All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. Note: In RC1 of the Feature Toggle library, there was a bug where I needed to write my own Settings Feature Provider. [Here's an example of how this worked if you want to write your own.](https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling/blob/9475e039ac03f54c9dcab69c30373743fba7b210/src/api/Features/Custom/SettingsFeatureProvider.cs).
+All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. Note: In RC1 of the Feature Toggle library, there was a bug where I needed to write my own Settings Feature Provider, so [here's an example of how this worked if you want to write your own.](https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling/blob/9475e039ac03f54c9dcab69c30373743fba7b210/src/api/Features/Custom/SettingsFeatureProvider.cs).
 
 #### Feature registration
 ```
