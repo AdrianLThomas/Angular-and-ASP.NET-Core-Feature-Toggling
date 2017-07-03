@@ -32,47 +32,14 @@ In our `appSettings.json` file, we configure our features like so:
   }
 }
 ```
-Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain later how you can implement your own method of obtaining settings. _Note: In this scenario the name of the setting should correlate exactly with the class name of our feature. I will explain why later in this post._
+Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain later how you can implement your own method of obtaining settings. _Note: The name of the setting should correlate exactly with the class name of our feature._
 
 I'll leave it up to you on how you decide to toggle the switch. This could be deploy time, real time or just manually.
 
 ### Settings Feature Provider
-Unfortunately one of the issues with this pre-release version of the package is that the AppSettingsProvider within the FeatureToggle package is that it doesn't appear to read from the config file correctly. I've raised an [issue on GitHub](https://github.com/jason-roberts/FeatureToggle/issues/145) but I'm awaiting a resolution.
+You can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database or a config file). 
 
-The good thing is that you can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database, or in our scenario a config file). This is exactly what I did to read from the AppSettings.json file.
-
-All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. In the scenario below, I read from the AppSettings.json file, looking for a "FeatureToggle" section, and use reflection to find the class name of the current feature instance, then look it up from config. 
-
-#### Custom settings provider
-```
-public class SettingsFeatureProvider : IBooleanToggleValueProvider
-{
-    private readonly IConfigurationRoot _configuration;
-
-    public SettingsFeatureProvider(IConfigurationRoot configuration)
-    {
-        if (configuration == null)
-            throw new ArgumentNullException(nameof(configuration));
-
-        _configuration = configuration;
-    }
-
-    public bool EvaluateBooleanToggleValue(IFeatureToggle toggle)
-    {
-        if (toggle == null)
-            throw new ArgumentNullException(nameof(toggle));
-
-        string settingName = toggle.GetType().Name;
-        string keyName = $"FeatureToggle:{settingName}";
-        string value = _configuration[keyName];
-
-        if (string.IsNullOrEmpty(value))
-            throw new InvalidOperationException($"Key not found in AppSetting.json: {keyName}");
-
-        return Convert.ToBoolean(value);
-    }
-}
-```
+All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. Note: In RC1 of the Feature Toggle library, there was a bug where I needed to write my own Settings Feature Provider. [Here's an example of how this worked if you want to write your own.](https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling/blob/9475e039ac03f54c9dcab69c30373743fba7b210/src/api/Features/Custom/SettingsFeatureProvider.cs).
 
 #### Feature registration
 ```
@@ -84,11 +51,11 @@ public static void AddFeatures(this IServiceCollection services, IConfigurationR
 ```
 
 ### Installing the NuGet package
-First we need to install the NuGet package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to aim for as it supports many versions of .NET and is frequently updated. There are some issues with it, which we will work around in this article.
+First we need to install the NuGet package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to target as it supports many versions of .NET and is frequently updated. 
 
 Run the following to install the package to your project:
 
-`dotnet add package FeatureToggle --version 4.0.0-rc1`
+`dotnet add package FeatureToggle --version 4.0.0-rc2`
 
 `dotnet restore`
 
@@ -167,7 +134,7 @@ Note that we get the response message and status code as specified in the BaseFe
 ### Exposing available features
 We want to be able to expose what features are enabled/disabled so that our Angular app can determine what parts of the website should be active (rendered and executed). Therefore we should expose an endpoint that displays all features and their current state.
 
-In this example we inject each feature in to the constructor of the controller and return it from the action. It would be nice to inject a list of IFeatureToggle rather than manually maintaining this list. One option would be to register each feature by the IFeatureToggle interface, which would then provide us with this behaviour. However the issue is that the in order to apply the filter on the controller, we want to use the instance of the filter registered with the IoC container so that the settings get loaded correctly (due to the aforementioned issue). To do this we use the ServiceFilterAttribute and specify the concrete type, but because we registered the interface rather than the implementation the injection fails. Therefore we have to maintain this list with all available features we want to expose via the API.
+In this example we inject each feature in to the constructor of the controller and return it from the action. It would be nice to inject a list of IFeatureToggle rather than manually maintaining this list. One option would be to register each feature by the IFeatureToggle interface, which would then provide us with this behaviour. However the issue is that the in order to apply the filter on the controller, we want to use the instance of the filter registered with the IoC container so that the settings get loaded correctly. To do this we use the ServiceFilterAttribute and specify the concrete type, but because we registered the interface rather than the implementation the injection fails. Therefore we have to maintain this list with all available features we want to expose via the API.
 
 
 ```
@@ -292,7 +259,7 @@ _Note: Ensure ```npm start``` is used rather than ```ng serve```, as we want the
 ```$ dotnet run```
 
 # Other Notes
-In order to avoid CORS issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the angular website and serves them to the API running on a different port.
+When the Angular app tries to make request across domains, the browser will block this request for security reasons. Therefore to avoid these CORS (Cross-Origin Resource Sharing) issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the Angular website and serves them to the API running on a different port. In a production scenario, you would want to either ensure the API is on the same origin, or [set the HTTP response headers accordingly](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS#The_HTTP_response_headers).
 
 # Summary
 I hope you've found this post helpful. If you have any feedback or suggestions, please feel free to raise an issue or pull request on GitHub and I'd be happy to take a look.
