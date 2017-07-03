@@ -24,7 +24,7 @@ This article covers typical changes needed to make to an existing solution, not 
 ## The API
 ### Settings file
 In our `appSettings.json` file, we configure our features like so:
-```
+```json
 {
   "FeatureToggle":{
     "ValuesFeature": "false",
@@ -52,7 +52,7 @@ Run the following to install the package to your project:
 
 ### Making the feature a filter
 When using FeatureToggle, we create strongly typed features that inherit the SimpleFeatureToggle class. When creating features, it would be useful for these to also implement the IResourceFilter interface so that we can restrict API access at either a controller or action level. Therefore in this example, we can create a BaseFeature class:
-```
+```csharp
 public abstract class BaseFeature : SimpleFeatureToggle, IResourceFilter
 {
     public void OnResourceExecuted(ResourceExecutedContext context)
@@ -83,7 +83,7 @@ Our new features should now inherit this class.
 #### Feature registration
 We need to configure the IOC container with this new feature like so:
 
-```
+```csharp
 // FeatureServiceCollectionExtensions.cs
 public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
 {
@@ -100,18 +100,18 @@ public void ConfigureServices(IServiceCollection services)
 
 ### Associating a feature with controllers / actions
 If the feature is disabled, then the request should fail with the specified message and status code. Therefore if we create a new feature:
-```
+```csharp
 public class ValuesFeature : BaseFeature { }
 ```
 
 and apply this to a controller or action by using the ServiceFilterAttribute:
-```
+```csharp
 [ServiceFilter(typeof(ValuesFeature))] //Applied to all actions within controller
 public class ValuesController : Controller
 {
 }   
 ```
-```
+```csharp
 [HttpGet]
 [ServiceFilter(typeof(ValuesFeature))] //Applied to just this action
 public IEnumerable<string> Get()
@@ -124,7 +124,7 @@ Then we will either execute the action or stop the execution of the action altog
 
 #### Response from a disabled feature
 If the ValuesFeature is turned off, and we make GET request to `http://localhost:4200/api/Values` then we will see the following response:
-```
+```bash
 $ curl -i -X GET http://localhost:4200/api/values
 HTTP/1.1 401 Unauthorized
 X-Powered-By: Express
@@ -146,7 +146,7 @@ We want to be able to expose what features are enabled/disabled so that our Angu
 In this example we inject each feature in to the constructor of the controller and return it from the action. It would be nice to inject a list of IFeatureToggle rather than manually maintaining this list. One option would be to register each feature by the IFeatureToggle interface, which would then provide us with this behaviour. However the issue is that the in order to apply the filter on the controller, we want to use the instance of the filter registered with the IoC container so that the settings get loaded correctly. To do this we use the ServiceFilterAttribute and specify the concrete type, but because we registered the interface rather than the implementation the injection fails. Therefore we have to maintain this list with all available features we want to expose via the API.
 
 
-```
+```csharp
 [Route("api/[controller]")]
 public class FeaturesController : Controller
 {
@@ -172,7 +172,7 @@ public class FeaturesController : Controller
 ```
 
 #### Response from the features endpoint
-```
+```bash
 $ curl -i -X GET http://localhost:4200/api/features
 HTTP/1.1 200 OK
 X-Powered-By: Express
@@ -188,7 +188,7 @@ transfer-encoding: chunked
 
 ## The Website
 Quite simply, Angular just needs to make the request to the API and use `*ngIf` to bind to the result returned from the API. A features service could be created like so:
-```
+```typescript
 import { Injectable } from '@angular/core';
 import { Http, Response, Headers, RequestOptions, Request, RequestMethod } from '@angular/http';
 import { Observable } from 'rxjs/Rx';
@@ -218,7 +218,7 @@ export class FeaturesService {
 ```
 
 Here is our Features model:
-```
+```typescript
 export class Features {
   ValuesFeature: boolean;
   NavigationFeature: boolean;
@@ -227,7 +227,7 @@ export class Features {
 
 
 You can then inject this service in to your component, and bind to the feature in the markup:
-```
+```html
 <app-navigation *ngIf="features.NavigationFeature"></app-navigation>
 
 <h1>Feature Toggling Demo</h1>
