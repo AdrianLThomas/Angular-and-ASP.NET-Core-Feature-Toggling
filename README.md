@@ -1,7 +1,7 @@
 # Feature Toggle demo using Angular (2+) and ASP.NET Core
 
 # Intro
-Feature toggling is what it says on the tin, the ability to toggle features off/on. This can be useful for a range of scenarios - perhaps a feature isn't quite yet ready for production yet, or there's some new functionality you would like to trial with some but not all customers. In this blog article you will learn how to feature toggle in an Angular 2+ app and ASP .NET Core Web API. We'll hide components and avoid them from being executed unless enabled, and also protect specific endpoints on the API from being called. There is also a demo with some sample code at the end of this article.
+Feature toggling is what it says on the tin, the ability to toggle features off/on. This can be useful for a range of scenarios - perhaps a feature isn't quite yet ready for production yet, or there's some new functionality you would like to trial with some but not all customers. In this blog article we will learn how to feature toggle in an Angular 2+ app and ASP .NET Core Web API. We'll hide components and avoid them from being executed unless enabled, and also protect specific endpoints on the API from being called. There is also a demo with some sample code at the end of this article.
 
 # Getting Started
 ## Prerequisites
@@ -19,7 +19,7 @@ In a nutshell:
 * Make a request to the API from Angular to discover what features are enabled, and simply use `*ngIf` to decide whether that component should be enabled.
 
 # Setup
-This article covers typical changes you would need to make to your existing solution, not how to set up a new Angular / .NET Core project. Please use the demo at the end of this article as a working reference.
+This article covers typical changes needed to make to an existing solution, not how to set up a new Angular / .NET Core project. Please use the demo at the end of this article as a working reference.
 
 ## The API
 ### Settings file
@@ -32,26 +32,17 @@ In our `appSettings.json` file, we configure our features like so:
   }
 }
 ```
-Our features can then be configured accordingly by adjusting the values in the configuration. Of course you don't need to use this file, and I'll explain in a moment how you can implement your own method of obtaining settings. _Note: The name of the setting should correlate exactly with the class name of our feature._
+Our features can then be configured accordingly by adjusting the values in the configuration. Of course we don't need to use this file, and I'll explain in a moment how we can implement our own method of obtaining settings. _Note: The name of the setting should correlate exactly with the class name of our feature._
 
 I'll leave it up to you on how you decide to toggle the switch. This could be deploy time, real time or just manually.
 
 ### Settings Feature Provider
-You can write your own settings provider so that you can integrate with whichever service you would like (such as an API, database or a config file). 
+We can write our own settings provider so that we can integrate with whichever service we would like (such as an API, database or a config file). 
 
-All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. Note: In RC1 of the Feature Toggle library, there was a bug where I needed to write my own Settings Feature Provider, so [here's an example of how this worked if you want to write your own.](https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling/blob/9475e039ac03f54c9dcab69c30373743fba7b210/src/api/Features/Custom/SettingsFeatureProvider.cs).
-
-#### Feature registration
-```
-public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
-{
-    var provider = new SettingsFeatureProvider(configuration);
-    services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });});
-}
-```
+All that is needed is to implement the IBooleanToggleValueProvider interface, create an instance of it and assign it to a property on the feature at registration. Note: In the previous RC1 version of the Feature Toggle library, there was a bug where we would have needed to write our own Settings Feature Provider, so [here's an example of how this worked if you want to write your own.](https://github.com/AdrianLThomas/Angular-and-ASP.NET-Core-Feature-Toggling/blob/9475e039ac03f54c9dcab69c30373743fba7b210/src/api/Features/Custom/SettingsFeatureProvider.cs).
 
 ### Installing the NuGet package
-First we need to install the NuGet package. We need to use a pre-release version (at time of writing) that supports .NET Core. It's a good package to target as it supports many versions of .NET and is frequently updated. 
+First we need to install the NuGet package. We need to use the RC2 pre-release version (at time of writing) that supports .NET Core. It's a good package to target as it supports many versions of .NET and is frequently updated. 
 
 Run the following to install the package to your project:
 
@@ -60,7 +51,7 @@ Run the following to install the package to your project:
 `dotnet restore`
 
 ### Making the feature a filter
-When using FeatureToggle, we create strongly typed features that inherit the SimpleFeatureToggle class. When creating features, it would be useful for these to also implement the IResourceFilter interface so that we can restrict API access at either a controller or action level. Therefore in this example, I created a BaseFeature class:
+When using FeatureToggle, we create strongly typed features that inherit the SimpleFeatureToggle class. When creating features, it would be useful for these to also implement the IResourceFilter interface so that we can restrict API access at either a controller or action level. Therefore in this example, we can create a BaseFeature class:
 ```
 public abstract class BaseFeature : SimpleFeatureToggle, IResourceFilter
 {
@@ -88,6 +79,24 @@ public abstract class BaseFeature : SimpleFeatureToggle, IResourceFilter
 ```
 
 Our new features should now inherit this class.
+
+#### Feature registration
+We need to configure the IOC container with this new feature like so:
+
+```
+// FeatureServiceCollectionExtensions.cs
+public static void AddFeatures(this IServiceCollection services, IConfigurationRoot configuration)
+{
+    var provider = new SettingsFeatureProvider(configuration);
+    services.AddSingleton(new ValuesFeature() { ToggleValueProvider = provider });});
+}
+
+// Startup.cs
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddFeatures(Configuration);
+}
+```
 
 ### Associating a feature with controllers / actions
 If the feature is disabled, then the request should fail with the specified message and status code. Therefore if we create a new feature:
@@ -232,8 +241,8 @@ You can then inject this service in to your component, and bind to the feature i
 The nice thing is that since these components don't even get rendered, the components will not execute any code (thus any further API calls they would be making (and failing) will not be made at all).
 
 # Adding new features
-So if you want to add a new feature, you need to follow these steps:
-1. Create a new feature class in your API
+So, in a nutshell when adding a new feature the following steps should be followed:
+1. Create a new feature class in the API
 1. Register the feature with IoC container
 1. Add a setting for said feature to AppSettings.json (_remember to name it the same as the class name_)
 1. Expose the feature via API endpoint
@@ -259,7 +268,7 @@ _Note: Ensure ```npm start``` is used rather than ```ng serve```, as we want the
 ```$ dotnet run```
 
 # Other Notes
-When the Angular app tries to make request across domains, the browser will block this request for security reasons. Therefore to avoid these CORS (Cross-Origin Resource Sharing) issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the Angular website and serves them to the API running on a different port. In a production scenario, you would want to either ensure the API is on the same origin, or [set the HTTP response headers accordingly](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS#The_HTTP_response_headers).
+When the Angular app tries to make a request across domains, the browser will block this request for security reasons. Therefore to avoid these CORS (Cross-Origin Resource Sharing) issues for local development, we are using [stories proxy](https://github.com/angular/angular-cli/wiki/stories-proxy). This takes API requests from the port that is serving the Angular website and serves them to the API running on a different port. In a production scenario, it is recommended to either ensure the API is on the same origin, or [set the HTTP response headers accordingly](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS#The_HTTP_response_headers).
 
 # Summary
 I hope you've found this post helpful. If you have any feedback or suggestions, please feel free to raise an issue or pull request on GitHub and I'd be happy to take a look.
